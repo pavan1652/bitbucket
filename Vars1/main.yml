@@ -1,0 +1,5 @@
+---
+# vars file for bitbucket-bbnfs
+​
+pv_device: /dev/nvme1n1
+shared_mount: /bitbucket-shared

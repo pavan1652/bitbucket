@@ -1,0 +1,77 @@
+---
+​
+- name: create the directory structure for bitbucket
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+  with_items:
+    - /opt/bitbucket-setup
+​
+- name: download the bitbucket install script
+  get_url:
+    url: https://{{ git_user }}:{{ git_pw }}@artrepo.firstrepublic.com/artifactory/Linux_Engineering_Installs/atlassian-bitbucket-{{ bitbucket_version }}-x64.bin
+    dest: /opt/bitbucket-setup
+    validate_certs: no
+    owner: root
+    group: root
+    mode: 0755
+  async: 600
+  poll: 0
+  register: download_output
+​
+- name: wait for download to finish
+  async_status:
+    jid: "{{ download_output.ansible_job_id }}"
+  register: download_result
+  until: download_result.finished
+  retries: 60
+  delay: 10
+​
+- name: create shared directory
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: atlbitbucket
+    group: atlbitbucket
+    mode: 0755
+  with_items:
+    - /var/atlassian
+    - /var/atlassian/application-data
+    - "{{ bitbucketHome }}"
+​
+- name: copy response file
+  template:
+    src: "{{ response_varfile }}.j2"
+    dest: "/opt/bitbucket-setup/{{ response_varfile }}"
+    owner: root
+    group: root
+    mode: 0644
+​
+- name: run the installer
+  shell:  "/opt/bitbucket-setup/atlassian-bitbucket-{{ bitbucket_version }}-x64.bin -q -varfile {{ response_varfile }}"
+  args:
+    chdir: /opt/bitbucket-setup/
+  async: 360
+  poll: 0
+  register: installer_output
+​
+- name: wait for installer to finish
+  async_status:
+    jid: "{{ installer_output.ansible_job_id }}"
+  register: job1_result
+  until: job1_result.finished
+  retries: 60
+  delay: 6
+​
+- name: Make sure the permission are correct on install directory
+  file:
+    path: "{{ item }}"
+    owner: atlbitbucket
+    group: atlbitbucket
+    recurse: yes
+  with_items:
+    - /var/atlassian
+    - /opt/atlassian

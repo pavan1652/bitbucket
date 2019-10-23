@@ -1,0 +1,35 @@
+setup.displayName={{ setup_displayName }}
+setup.baseUrl={{ setup_baseUrl }}
+setup.license={{ setup_license }}
+
+setup.sysadmin.username={{ setup_sysadmin_username }}
+setup.sysadmin.password={{ setup_sysadmin_password }}
+setup.sysadmin.displayName={{ setup_sysadmin_displayName }}
+setup.sysadmin.emailAddress={{ setup_sysadmin_emailAddress }}
+
+# Use multicast to discover cluster nodes (recommended).
+hazelcast.network.multicast=true
+
+# If your network does not support multicast, you may uncomment the following lines and substitute
+# the IP addresses of some or all of your cluster nodes. (Not all of the cluster nodes have to be
+# listed here but at least one of them has to be active when a new node joins.) 
+#hazelcast.network.tcpip=true
+#hazelcast.network.tcpip.members=192.168.0.1:5701,192.168.0.2:5701,192.168.0.3:5701
+
+# The following should uniquely identify your cluster on the LAN. 
+hazelcast.group.name={{ hazelcast_group_name }}
+hazelcast.group.password={{ hazelcast_group_password }}
+
+server.port={{ server_port }}
+server.ssl.enabled={{ server_ssl_enabled }}
+server.ssl.key-store={{ server_ssl_keystore }}
+server.ssl.key-store.password={{ server_ssl_keystore_password }}
+server.ssl.key-password={{ server_ssl_key_password }}
+
+jdbc.driver={{ jdbc_driver }}
+jdbc.url={{ jdbc_url }}
+jdbc.user={{ jdbc_user }}
+jdbc.password={{ jdbc_password }}
+
+plugin.search.elasticsuearch.baseurl={{ plugin_search_elasticsearch_baseurl }}
+plugin.search.elasticsearch.aws.region={{ name_region }}

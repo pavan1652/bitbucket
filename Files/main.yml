@@ -1,0 +1,16 @@
+---
+# handlers file for bitbucket-bbapp
+​
+- name: restart bitbucket
+  systemd:
+    name: atlbitbucket
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+​
+- name: restart nfs_server_check.timer
+  systemd:
+    name: nfs_server_check.timer
+    state: restarted
+    daemon_reload: yes
+    enabled: yes

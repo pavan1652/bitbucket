@@ -1,0 +1,12 @@
+[Unit]
+Description=Checks if the Bitbucket fileserver IP has changes
+
+[Timer]
+Unit=nfs_server_check.service
+OnBootSec=60s
+OnUnitInactiveSec=5m
+RandomizedDelaySec=1m
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

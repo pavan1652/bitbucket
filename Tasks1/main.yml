@@ -1,0 +1,84 @@
+---
+# tasks file for bitbucket-bbnfs
+​
+​
+- name: installed required packages
+  yum:
+    name: "{{ item }}"
+    state: installed
+  with_items:
+    - nfs-utils
+    - lvm2
+​
+- name: scan the volume and activating vg
+  shell:  vgscan --mknodes && lvdisplay
+  register: scan_out
+  changed_when: False
+  
+- debug: 
+    var: scan_out
+​
+- name: activate vgbbucket if found
+  shell:  lvchange -ay /dev/vgbbucket/lvshared 
+  changed_when: False
+  when: "'/dev/vgbbucket/lvshared' in scan_out.stdout"
+​
+- name: No vgbbucket found, creating VG/FS
+  include_tasks: create_lvshared.yml
+  when: "'/dev/vgbbucket/lvshared' not in scan_out.stdout"
+​
+- name: make sure the share directory {{ shared_mount }} exists 
+  file:
+    path: "{{ shared_mount }}"
+    state: directory 
+    mode: 0755
+​
+- name:  mount the nfs filesystem
+  mount:
+    path: "{{ shared_mount }}"
+    src: /dev/vgbbucket/lvshared
+    fstype: xfs
+    state: mounted
+​
+- name: create atlbitbucket group
+  group:
+    name: atlbitbucket
+    gid: 1100
+    state: present
+​
+- name: create atlbitbucket user
+  user:
+    name: atlbitbucket
+    uid: 1100
+    group: atlbitbucket
+    comment: "Atlassian Bitbucket"
+    shell: /bin/bash
+​
+- name: make sure the share directory {{ shared_mount }} exists
+  file:
+    path: "{{ shared_mount }}"
+    state: directory
+    owner: atlbitbucket
+    group: atlbitbucket
+    mode: 0755
+​
+- name: disable password policy on it
+  shell:  chage -M 99999 -m 0 atlbitbucket
+  changed_when: False
+​
+- include_vars: "{{ name_region }}/{{ Environment }}.yml"
+​
+- name: export {{ shared_mount }} to cluster app nodes in all AZ
+  lineinfile:
+    path: /etc/exports
+    line: '{{ shared_mount }} {{ item }}(rw,no_root_squash,fsid=1100,sync)'
+    state: present
+  with_items:
+    - "{{ az_subnet_list }}"
+  notify: NFS reload
+​
+- name: start and enable nfs server
+  systemd: 
+    name: nfs-server
+    state: started
+    enabled: yes

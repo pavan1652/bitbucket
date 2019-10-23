@@ -1,0 +1,9 @@
+[Unit]
+Description=Checks if the Bitbucket fileserver IP has changed
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/nfs_server_check.sh
+
+[Install]
+WantedBy=multi-user.target

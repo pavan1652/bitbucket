@@ -1,0 +1,7 @@
+---
+# handlers file for bitbucket-bbnfs
+​
+- name: NFS reload
+  systemd:
+    name: nfs-server
+    state: reloaded

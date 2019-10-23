@@ -1,0 +1,27 @@
+---
+​
+- name: create a partition on {{ pv_device }}
+  parted: 
+    device: "{{ pv_device }}"
+    number: 1
+    state: present
+​
+- name: create vg on {{ pv_device }}p1
+  lvg:
+    vg: vgbbucket
+    pvs: "{{ pv_device }}p1"
+    state: present
+​
+- name: create lv for /dev/vgbbucket/lvshared
+  lvol:
+    vg: vgbbucket
+    lv: "{{ item.lv }}"
+    size: "{{ item.percent }}%VG"
+    state: present
+  with_items:
+     - { lv: 'lvshared', percent: '100' }
+​
+- name: create a xfs filesystem on /dev/vgbbucket/lvshared
+  filesystem:
+    fstype: xfs
+    dev: /dev/vgbbucket/lvshared

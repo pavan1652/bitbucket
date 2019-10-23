@@ -1,0 +1,14 @@
+---
+# vars file for bitbucket-bbapp
+#
+​
+git_package: rh-git29
+bitbucket_version: 6.7.1
+bitbucketHome: /var/atlassian/application-data/bitbucket
+bitbucketInstallDir: /opt/atlassian/bitbucket/{{ bitbucket_version }}
+response_varfile: bitbucket_responsefile
+#bitbucket_fileserver: 10.17.230.63
+bitbucket_fileserver: "{{ AnsibleData.bbnfs_hostname }}"
+tag_name: 
+  - Name
+  - AnsibleData
