@@ -1,0 +1,170 @@
+---
+# tasks file for bitbucket-bbapp
+#
+​
+- include_vars: "secrets.yml"
+- include_vars: "{{ name_region }}/{{ Environment }}.yml"
+​
+- name: install git
+  yum:
+    name: "{{ git_package }}"
+    enablerepo: rhui-REGION-rhel-server-rhscl
+    state: installed
+​
+- name: set git env
+  template:
+    src: templates/git.sh.j2
+    dest: /etc/profile.d/git.sh
+    owner: root
+    group: root
+    mode: 0644
+​
+- name: create atlbitbucket group
+  group:
+    name: atlbitbucket
+    gid: 1100
+    state: present
+​
+- name: create atlbitbucket user
+  user:
+    name: atlbitbucket
+    uid: 1100
+    group: atlbitbucket
+    comment: "Atlassian Bitbucket"
+    shell: /bin/bash
+​
+- name: disable password policy on it
+  shell:  chage -M 99999 -m 0 atlbitbucket
+  changed_when: False
+​
+- name: check if atlbitbucket is installed
+  stat: 
+    path: /etc/init.d/atlbitbucket
+  register: service_status
+​
+- debug: 
+    var: service_status
+​
+- name: Install bitbucket if its not installed 
+  include_tasks: install_bitbucket.yml
+  when: service_status.stat.exists == False
+​
+- name: add route53 DNS server as nameservers in resolv.conf
+  copy:
+    src: resolv.conf
+    dest: "{{ item }}"
+    owner: root
+    group: root
+    mode: 0644
+  with_items:
+    - /etc/resolv.conf
+    - /etc/resolv.conf.bkp
+​
+- name: Checking if fileserver is up
+  wait_for:
+    port: 2049
+    host: "{{ bitbucket_fileserver }}"
+    delay: 5
+    timeout: 1800
+    msg: "{{ bitbucket_fileserver }} is not responding on port 2049"
+​
+- name: install nfs client
+  yum: 
+    name: nfs-utils
+    state: installed
+​
+- name:  mount the NFS mount
+  mount: 
+    path: "{{ bitbucketHome }}/shared"
+    src: "{{ bitbucket_fileserver }}:/bitbucket-shared"
+    fstype: nfs
+    opts: lookupcache=pos,noatime,intr,rsize=32768,wsize=32768
+    state: mounted
+​
+- name: create shared config directory 
+  file:
+    path: "{{ bitbucketHome }}/shared/config"
+    state: directory
+    owner: atlbitbucket
+    group: atlbitbucket
+    mode: 0755
+    
+- name: copy certifactates file and config files
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: atlbitbucket
+    group: atlbitbucket
+    mode: '0640'
+  with_items:
+#    - { src: 'bitbucket.properties', dest: "{{ bitbucketHome }}/shared/bitbucket.properties" }
+    - { src: 'bitbucket.corp.firstrepublic.com.jks', dest: "{{ bitbucketHome }}/shared/config/bitbucket.corp.firstrepublic.com.jks" }
+  notify: restart bitbucket
+  tags:
+    - config
+​
+- name: copy bitbucket.properties 
+  template:
+    src: bitbucket.properties.j2
+    dest: "{{ bitbucketHome }}/shared/bitbucket.properties"
+    owner: atlbitbucket
+    group: atlbitbucket
+    mode: 0640
+  notify: restart bitbucket
+  tags:
+    - config
+​
+- name: update the umask to 0027
+  replace:
+    path: "{{ bitbucketInstallDir }}/bin/_start-webapp.sh"
+    regexp: '^# umask 0027$'
+    replace: 'umask 0027'
+  notify: restart bitbucket
+​
+- name: update the startup script use external elasticsearch 
+  lineinfile:
+    path: /etc/init.d/atlbitbucket
+    regexp: '    /opt/atlassian/bitbucket/{{ bitbucket_version }}/bin/start-bitbucket.sh'
+    line: '    /opt/atlassian/bitbucket/{{ bitbucket_version }}/bin/start-bitbucket.sh --no-search'
+    create: no
+  notify: restart bitbucket
+​
+- name: add fix for route53 DNS server for thr bitbucket startup script
+  lineinfile:
+    path: /etc/init.d/atlbitbucket
+    regexp: '^    cp /etc/resolv.conf.bkp'
+    insertbefore: '    /opt/atlassian/bitbucket/{{ bitbucket_version }}/bin/start-bitbucket.sh --no-search'
+    line: '    cp /etc/resolv.conf.bkp  /etc/resolv.conf ; mount -a'
+    create: no
+  notify: restart bitbucket
+​
+- name: copy over Bitbucket fileserver check script
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  with_items:
+    - { src: nfs_server_check.service, dest: /etc/systemd/system/, mode: "0644" }
+    - { src: nfs_server_check.timer, dest: /etc/systemd/system/, mode: "0644" }
+    - { src: nfs_server_check.sh, dest: /usr/local/bin/, mode: "0750" }
+  notify: restart nfs_server_check.timer
+​
+- meta: flush_handlers
+​
+- name: ensure service enabled and running
+  systemd:
+    name: "{{ item }}"
+    state: started
+    daemon_reload: yes
+    enabled: yes
+  with_items:
+    - atlbitbucket
+    - nfs_server_check.timer
+​
+- name: ensure service enabled and running
+  systemd:
+    name: nfs_server_check
+    state: started
+    daemon_reload: yes
