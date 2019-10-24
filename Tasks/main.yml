@@ -2,8 +2,8 @@
 # tasks file for bitbucket-bbapp
 #
 ​
-- include_vars: "secrets.yml"
-- include_vars: "{{ name_region }}/{{ Environment }}.yml"
+- vars_files: "secrets.yml"
+- vars_files: "{{ name_region }}/{{ Environment }}.yml"
 ​
 - name: install git
   yum:
